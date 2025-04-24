@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pune Metro Route Planner</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        /* Navbar */
+        .navbar {
+            background-color: #145c38;
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .navbar-brand {
+            font-size: 1.5rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .navbar-brand i {
+            font-size: 1.8rem;
+        }
+
+        /* Main Container */
+        .main-container {
+            display: flex;
+            height: calc(100vh - 76px);
+        }
+
+        /* Map Container */
+        .map-container {
+            flex: 2;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #map {
+            height: 100%;
+            transition: all 0.3s;
+        }
+
+        /* Controls Panel */
+        .controls-panel {
+            flex: 1;
+            background: #f8f9fa;
+            padding: 1.5rem;
+            overflow-y: auto;
+            box-shadow: -2px 0 5px rgba(0,0,0,0.05);
+            min-width: 400px;
+        }
+
+        .section-title {
+            color: #2c3e50;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #198754;
+            font-size: 1.2rem;
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #495057;
+            font-weight: 500;
+        }
+
+        select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #ced4da;
+            border-radius: 6px;
+            background: white;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #198754;
+            box-shadow: 0 0 0 3px rgba(25,135,84,0.25);
+        }
+
+        /* Buttons */
+        .button-group {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            margin: 1.5rem 0;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background-color: #198754;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #145c38;
+        }
+
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background-color: #5a6268;
+        }
+
+        /* Tourist Spots */
+        .tourist-list {
+            display: grid;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .tourist-card {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border-left: 4px solid #198754;
+        }
+
+        .tourist-card h4 {
+            margin: 0 0 0.5rem 0;
+            color: #2c3e50;
+        }
+
+        .tourist-card p {
+            margin: 0;
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+
+        /* Legend */
+        .map-legend {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 0.5rem 0;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 0.75rem;
+        }
+
+        @media (max-width: 768px) {
+            .main-container {
+                flex-direction: column;
+            }
+            
+            .map-container {
+                height: 60vh;
+            }
+            
+            .controls-panel {
+                min-width: unset;
+            }
+        }
+
+        /* Output Styling */
+        .output-container {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-brand">
+            <i class="bi bi-subway"></i>
+            Pune Metro Navigator
+        </div>
+    </nav>
+
+    <div class="main-container">
+        <div class="map-container">
+            <div id="map"></div>
+            
+            <!-- Map Legend -->
+            <div class="map-legend">
+                <h4 style="margin-top: 0;">Map Legend</h4>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #7a5195;"></div>
+                    <span>Metro Stations</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #ffb300;"></div>
+                    <span>Tourist Spots</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #198754;"></div>
+                    <span>MST Connections</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls-panel">
+            <h2 class="section-title">Route Planner</h2>
+            
+            <div class="form-group">
+                <label>Starting Station</label>
+                <select id="startStation">
+                    <!-- Options will be dynamically populated -->
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Destination Station</label>
+                <select id="endStation">
+                    <!-- Options will be dynamically populated -->
+                </select>
+            </div>
+
+            <div class="button-group">
+                <button class="btn btn-primary" onclick="findRoute()">
+                    <i class="bi bi-geo-alt"></i> Find Route
+                </button>
+                <button class="btn btn-secondary" onclick="findMST()">
+                    <i class="bi bi-diagram-3"></i> Show MST
+                </button>
+                <button class="btn btn-secondary" onclick="clearRoute()">
+                    <i class="bi bi-x-circle"></i> Clear
+                </button>
+            </div>
+
+            <div id="output" class="output-container"></div>
+
+            <h2 class="section-title">Tourist Attractions</h2>
+            <div id="spotsList" class="tourist-list"></div>
+        </div>
+    </div>
+
+    <script>
+        // Map initialization
+        var map = L.map('map').setView([18.5204, 73.8567], 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Metro stations data with connections (graph edges)
+        var stations = [
+            {"id": 0, "name": "PCMC", "coords": [18.6518, 73.7625], "connections": [1]},
+            {"id": 1, "name": "Sant Tukaram Nagar", "coords": [18.644, 73.77], "connections": [0, 2]},
+            {"id": 2, "name": "Bhosari (Nashik Phata)", "coords": [18.6216, 73.7794], "connections": [1, 3]},
+            {"id": 3, "name": "Kasarwadi", "coords": [18.6112, 73.7925], "connections": [2, 4]},
+            {"id": 4, "name": "Phugewadi", "coords": [18.5995, 73.8037], "connections": [3, 5]},
+            {"id": 5, "name": "Dapodi", "coords": [18.5792, 73.8147], "connections": [4, 6]},
+            {"id": 6, "name": "Bopodi", "coords": [18.5708, 73.8269], "connections": [5, 7]},
+            {"id": 7, "name": "Khadki", "coords": [18.5631, 73.8372], "connections": [6, 8]},
+            {"id": 8, "name": "Range Hills", "coords": [18.5539, 73.8391], "connections": [7, 9]},
+            {"id": 9, "name": "Shivajinagar", "coords": [18.5299, 73.8465], "connections": [8, 37]},
+            {"id": 10, "name": "Civil Court", "coords": [18.5177, 73.8516], "connections": [11, 32]},
+            {"id": 11, "name": "Budhwar Peth", "coords": [18.5161, 73.8563], "connections": [10, 12, 31]},
+            {"id": 12, "name": "Mandai", "coords": [18.5144, 73.8613], "connections": [11, 13]},
+            {"id": 13, "name": "Swargate", "coords": [18.5011, 73.8647], "connections": [12, 14]},
+            {"id": 14, "name": "Katraj", "coords": [18.4573, 73.8517], "connections": [13]},
+            {"id": 15, "name": "Vanaz", "coords": [18.5047, 73.7868], "connections": [16]},
+            {"id": 16, "name": "Anand Nagar", "coords": [18.5082, 73.7936], "connections": [15, 17]},
+            {"id": 17, "name": "Ideal Colony", "coords": [18.5116, 73.8009], "connections": [16, 18]},
+            {"id": 18, "name": "Nal Stop", "coords": [18.5162, 73.8089], "connections": [17, 19]},
+            {"id": 19, "name": "Garware College", "coords": [18.5181, 73.8143], "connections": [18, 20]},
+            {"id": 20, "name": "Deccan Gymkhana", "coords": [18.5203, 73.8191], "connections": [19, 21]},
+            {"id": 21, "name": "Chhatrapati Sambhaji Udyan", "coords": [18.5223, 73.8246], "connections": [20, 22]},
+            {"id": 22, "name": "PMC", "coords": [18.5279, 73.8309], "connections": [21, 23]},
+            {"id": 23, "name": "Mangalwar Peth", "coords": [18.5339, 73.8367], "connections": [22, 24]},
+            {"id": 24, "name": "Pune Junction", "coords": [18.5285, 73.8745], "connections": [23, 25]},
+            {"id": 25, "name": "Ruby Hall Clinic", "coords": [18.5332, 73.8791], "connections": [24, 26]},
+            {"id": 26, "name": "Bund Garden", "coords": [18.5375, 73.8834], "connections": [25, 27, 34]},
+            {"id": 27, "name": "Yerawada", "coords": [18.5421, 73.8878], "connections": [26, 28, 35]},
+            {"id": 28, "name": "Kalyani Nagar", "coords": [18.5483, 73.8914], "connections": [27, 29]},
+            {"id": 29, "name": "Ramwadi", "coords": [18.5541, 73.8934], "connections": [28, 30]},
+            {"id": 30, "name": "Viman Nagar", "coords": [18.5682, 73.9158], "connections": [29]},
+            {"id": 31, "name": "Shivaji Nagar Bus Station", "coords": [18.5250, 73.8470], "connections": [11]},
+            {"id": 32, "name": "Pimpri", "coords": [18.6269, 73.8003], "connections": [10, 33]},
+            {"id": 33, "name": "Pimpri Chinchwad", "coords": [18.6304, 73.7995], "connections": [32, 34]},
+            {"id": 34, "name": "Wakad", "coords": [18.5979, 73.7633], "connections": [26, 33]},
+            {"id": 35, "name": "Hinjewadi", "coords": [18.5892, 73.7394], "connections": [27, 36]},
+            {"id": 36, "name": "Balewadi Stadium", "coords": [18.5838, 73.7681], "connections": [35, 37]},
+            {"id": 37, "name": "University", "coords": [18.5536, 73.8236], "connections": [9, 36, 38]},
+            {"id": 38, "name": "Kothrud", "coords": [18.5156, 73.8075], "connections": [37, 39]},
+            {"id": 39, "name": "Karve Road", "coords": [18.5179, 73.8200], "connections": [38]}
+        ];
+
+        // Tourist spots data
+        var touristSpots = [
+            {name: "Shaniwar Wada", coords: [18.5193, 73.8547], nearStation: "Budhwar Peth", description: "Historic fort palace"},
+            {name: "Sinhagad Fort", coords: [18.3664, 73.7558], nearStation: "Katraj", description: "Historic mountain fortress"},
+            {name: "Aga Khan Palace", coords: [18.5476, 73.9001], nearStation: "Kalyani Nagar", description: "Historic building and museum"},
+            {name: "Osho Ashram", coords: [18.5336, 73.8696], nearStation: "Ruby Hall Clinic", description: "Spiritual meditation center"},
+            {name: "Dagdusheth Ganpati Temple", coords: [18.5158, 73.8556], nearStation: "Budhwar Peth", description: "Famous Hindu temple"},
+            {name: "Pataleshwar Cave Temple", coords: [18.5235, 73.8485], nearStation: "PMC", description: "Ancient rock-cut cave temple"},
+            {name: "Raja Dinkar Kelkar Museum", coords: [18.5064, 73.8583], nearStation: "Swargate", description: "Art and artifact museum"},
+            {name: "Pune University", coords: [18.5527, 73.8318], nearStation: "University", description: "Educational institution"},
+            {name: "Parvati Hill", coords: [18.4955, 73.8525], nearStation: "Swargate", description: "Hill temple with panoramic views"},
+            {name: "Lal Mahal", coords: [18.5187, 73.8550], nearStation: "Budhwar Peth", description: "Historical palace"}
+        ];
+
+        // Map elements
+        var stationMarkers = [];
+        var touristMarkers = [];
+        var routeLines = [];
+        var mstLines = [];
+
+        // Populate dropdown options
+        function populateStationDropdowns() {
+            const startSelect = document.getElementById('startStation');
+            const endSelect = document.getElementById('endStation');
+            
+            // Clear existing options
+            startSelect.innerHTML = '';
+            endSelect.innerHTML = '';
+            
+            // Add options for each station
+            stations.forEach(station => {
+                const startOption = document.createElement('option');
+                startOption.value = station.name;
+                startOption.textContent = station.name;
+                startSelect.appendChild(startOption);
+                
+                const endOption = document.createElement('option');
+                endOption.value = station.name;
+                endOption.textContent = station.name;
+                endSelect.appendChild(endOption);
+            });
+        }
+
+        // Populate tourist spots list
+        function populateTouristSpots() {
+            const spotsList = document.getElementById('spotsList');
+            spotsList.innerHTML = '';
+            
+            touristSpots.forEach(spot => {
+                const spotCard = document.createElement('div');
+                spotCard.className = 'tourist-card';
+                spotCard.innerHTML = `
+                    <h4>${spot.name}</h4>
+                    <p>${spot.description}</p>
+                    <p><small>Nearest Station: ${spot.nearStation}</small></p>
+                `;
+                spotCard.addEventListener('click', function() {
+                    // Find the station and center the map
+                    const station = findStationByName(spot.nearStation);
+                    if (station) {
+                        map.setView(spot.coords, 15);
+                        // Highlight the marker
+                        const marker = touristMarkers.find(m => 
+                            m.getLatLng().lat === spot.coords[0] && 
+                            m.getLatLng().lng === spot.coords[1]
+                        );
+                        if (marker) marker.openPopup();
+                    }
+                });
+                spotsList.appendChild(spotCard);
+            });
+        }
+
+        // Add stations to map
+        function addStationsToMap() {
+            stations.forEach(function(station) {
+                var marker = L.circleMarker(station.coords, {
+                    radius: 6,
+                    color: '#003f5c',
+                    fillColor: '#7a5195',
+                    fillOpacity: 0.9
+                }).bindPopup(`<b>${station.name}</b>`);
+                marker.addTo(map);
+                stationMarkers.push(marker);
+            });
+        }
+
+        // Add tourist spots to map
+        function addTouristSpotsToMap() {
+            touristSpots.forEach(function(spot) {
+                var marker = L.circleMarker(spot.coords, {
+                    radius: 8,
+                    color: '#ff7800',
+                    fillColor: '#ffb300',
+                    fillOpacity: 0.9
+                }).bindPopup(`<b>${spot.name}</b><br>${spot.description}<br>Nearest Metro: ${spot.nearStation}`);
+                marker.addTo(map);
+                touristMarkers.push(marker);
+                
+                // Draw connection line to nearest station
+                let station = findStationByName(spot.nearStation);
+                if (station) {
+                    L.polyline([spot.coords, station.coords], {
+                        color: 'gray',
+                        dashArray: '3,6',
+                        weight: 2
+                    }).addTo(map);
+                }
+            });
+        }
+
+        // Helper to find station by name
+        function findStationByName(name) {
+            return stations.find(s => s.name === name);
+        }
+
+        // Helper to find station by ID
+        function findStationById(id) {
+            return stations.find(s => s.id === id);
+        }
+
+        // Calculate distance between two points
+        function getDistance(coord1, coord2) {
+            // Haversine formula for more accurate distances on Earth
+            const R = 6371; // Radius of the Earth in km
+            const lat1 = coord1[0] * Math.PI / 180;
+            const lat2 = coord2[0] * Math.PI / 180;
+            const dLat = (coord2[0] - coord1[0]) * Math.PI / 180;
+            const dLon = (coord2[1] - coord1[1]) * Math.PI / 180;
+            
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(lat1) * Math.cos(lat2) * 
+                    Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c; // Distance in km
+        }
+
+       // Find shortest path using Dijkstra's algorithm
+        function findShortestPath(startName, endName) {
+            const startStation = findStationByName(startName);
+            const endStation = findStationByName(endName);
+            
+            if (!startStation || !endStation) {
+                return { path: [], distance: 0 };
+            }
+            
+            const numStations = stations.length;
+            const distances = new Array(numStations).fill(Infinity);
+            const visited = new Array(numStations).fill(false);
+            const previous = new Array(numStations).fill(null);
+            
+            distances[startStation.id] = 0;
+            
+            for (let i = 0; i < numStations; i++) {
+                // Find the minimum distance vertex
+                let minDist = Infinity;
+                let minIndex = -1;
+                
+                for (let j = 0; j < numStations; j++) {
+                    if (!visited[j] && distances[j] < minDist) {
+                        minDist = distances[j];
+                        minIndex = j;
+                    }
+                }
+                
+                if (minIndex === -1) break;
+                
+                visited[minIndex] = true;
+                
+                // Only consider explicit connections defined in the station data
+                const currentStation = findStationById(minIndex);
+                for (const neighborId of currentStation.connections) {
+                    const neighborStation = findStationById(neighborId);
+                    const distance = getDistance(currentStation.coords, neighborStation.coords);
+                    
+                    if (!visited[neighborId] && distances[minIndex] + distance < distances[neighborId]) {
+                        distances[neighborId] = distances[minIndex] + distance;
+                        previous[neighborId] = minIndex;
+                    }
+                }
+            }
+            
+            // Reconstruct the path
+            const path = [];
+            let current = endStation.id;
+            
+            while (current !== null) {
+                path.unshift(findStationById(current));
+                current = previous[current];
+            }
+            
+            // If no path found or path doesn't start with the start station
+            if (path.length === 0 || path[0].id !== startStation.id) {
+                return { path: [], distance: 0 };
+            }
+            
+            // Calculate total distance of the path
+            let totalDistance = 0;
+            for (let i = 0; i < path.length - 1; i++) {
+                totalDistance += getDistance(path[i].coords, path[i+1].coords);
+            }
+            
+            return { 
+                path: path,
+                distance: totalDistance
+            };
+        }
+
+        // Find Minimum Spanning Tree using Kruskal's algorithm
+        function findMinimumSpanningTree() {
+            const edges = [];
+            const numStations = stations.length;
+            
+            // Create all possible edges between stations (complete graph)
+            for (let i = 0; i < numStations; i++) {
+                for (let j = i + 1; j < numStations; j++) {
+                    const distance = getDistance(stations[i].coords, stations[j].coords);
+                    edges.push({
+                        from: i,
+                        to: j,
+                        weight: distance
+                    });
+                }
+            }
+            
+            // Sort edges by weight
+            edges.sort((a, b) => a.weight - b.weight);
+            
+            // Initialize Union-Find data structure
+            const parent = new Array(numStations);
+            for (let i = 0; i < numStations; i++) {
+                parent[i] = i;
+            }
+            
+            // Find root of a set
+            function find(i) {
+                if (parent[i] !== i) {
+                    parent[i] = find(parent[i]);  // Path compression
+                }
+                return parent[i];
+            }
+            
+            // Union of two sets
+            function union(x, y) {
+                parent[find(x)] = find(y);
+            }
+            
+            // Apply Kruskal's algorithm
+            const mst = [];
+            let edgeCount = 0;
+            
+            for (const edge of edges) {
+                // Check if including this edge creates a cycle
+                if (find(edge.from) !== find(edge.to)) {
+                    mst.push(edge);
+                    union(edge.from, edge.to);
+                    edgeCount++;
+                    
+                    // MST will have exactly n-1 edges
+                    if (edgeCount === numStations - 1) {
+                        break;
+                    }
+                }
+            }
+            
+            return mst;
+        }
+
+        // Display route on map
+        function findRoute() {
+            clearRoute();
+            
+            const startStation = document.getElementById('startStation').value;
+            const endStation = document.getElementById('endStation').value;
+            
+            if (startStation === endStation) {
+                document.getElementById('output').innerHTML = '<p>Start and end stations are the same.</p>';
+                return;
+            }
+            
+            const { path, distance } = findShortestPath(startStation, endStation);
+            
+            if (path.length === 0) {
+                document.getElementById('output').innerHTML = '<p>No route found between the selected stations.</p>';
+                return;
+            }
+            
+            // Display the route
+            for (let i = 0; i < path.length - 1; i++) {
+                const line = L.polyline([path[i].coords, path[i + 1].coords], {
+                    color: '#e63946',
+                    weight: 4
+                }).addTo(map);
+                routeLines.push(line);
+            }
+            
+            // Center map on the route
+            const bounds = L.latLngBounds(path.map(station => station.coords));
+            map.fitBounds(bounds, { padding: [50, 50] });
+            
+            // Display route information
+            let routeInfo = `
+                <h3>Route Details</h3>
+                <p><strong>From:</strong> ${startStation} <strong>To:</strong> ${endStation}</p>
+                <p><strong>Distance:</strong> ${distance.toFixed(2)} km</p>
+                <p><strong>Estimated Time:</strong> ${Math.ceil(distance * 4)} minutes</p>
+                <p><strong>Stations:</strong> ${path.map(s => s.name).join(' → ')}</p>
+            `;
+            document.getElementById('output').innerHTML = routeInfo;
+        }
+
+        // Display MST on map
+        function findMST() {
+            clearRoute();
+            
+            // Get MST edges from Kruskal's algorithm
+            const mst = findMinimumSpanningTree();
+            
+            // Display MST on the map
+            let totalDistance = 0;
+            mst.forEach(edge => {
+                const fromStation = findStationById(edge.from);
+                const toStation = findStationById(edge.to);
+                
+                const line = L.polyline([fromStation.coords, toStation.coords], {
+                    color: '#198754',
+                    weight: 3
+                }).addTo(map);
+                mstLines.push(line);
+                
+                totalDistance += edge.weight;
+            });
+            
+            // Show the entire network
+            map.setView([18.5204, 73.8567], 12);
+            
+            // Output information
+            document.getElementById('output').innerHTML = `
+                <h3>Minimum Spanning Tree</h3>
+                <p>Showing the most efficient way to connect all metro stations.</p>
+                <p>Total connections: ${mst.length}</p>
+                <p>Total distance: ${totalDistance.toFixed(2)} km</p>
+            `;
+        }
+
+        // Clear all routes
+        function clearRoute() {
+            // Remove all route lines
+            routeLines.forEach(line => map.removeLayer(line));
+            routeLines = [];
+            
+            // Remove all MST lines
+            mstLines.forEach(line => map.removeLayer(line));
+            mstLines = [];
+            
+            // Clear output
+            document.getElementById('output').innerHTML = '';
+        }
+
+        // Use MST from the JSON file
+        function loadMSTFromJSON() {
+            // This would be used if loading from the external JSON file
+            // For now, we're using the calculated MST
+            return findMinimumSpanningTree();
+        }
+
+        // Initialize the map
+        window.onload = function() {
+            addStationsToMap();
+            addTouristSpotsToMap();
+            populateStationDropdowns();
+            populateTouristSpots();
+        };
+    </script>
+</body>
+</html>
